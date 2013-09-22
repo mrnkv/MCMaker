@@ -6,11 +6,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import relationship
 
 
+
 def createSession(filename):
     engine = create_engine('sqlite:////home/mrnkv/tmp/data.db', echo = True)
     metadata = MetaData(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
+    Base.metadata.create_all(engine)
     return session
 
 
@@ -151,5 +153,5 @@ class Employee(Base):
         self.tab_num = tab_num
     def __repr__(self):
         return "<Employee('%s', '%s', '%s')>" % (self.family, self.name, self.sname)
-Base.metadata.create_all(engine)
+
 

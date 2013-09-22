@@ -1,23 +1,29 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import os
+import codecs
 import sys
 import ooutils
 import string
+from ConfigParser import SafeConfigParser
 from datetime import date
-from PyQt4.QtGui import QApplication, QDialog, QMainWindow, QTableWidgetItem, QAbstractItemView, QMessageBox
+from PyQt4.QtGui import QApplication, QDialog, QMainWindow, QFileDialog
+from PyQt4.QtGui import QTableWidgetItem, QAbstractItemView, QMessageBox
 from PyQt4.QtCore import *
-from ui_mainwindow import Ui_MainWindow
-from ui_groups import Ui_GroupDialog
-from ui_groups_mvc import Ui_GroupDialogMVC
-from ui_komand import Ui_Komand
-from ui_position import Ui_Position
-from ui_dept import Ui_Dept
-from ui_empls import Ui_Employee
-from ui_sltask import Ui_SlTask
-from ui_selectemployee import Ui_SelectEmployee
+from Forms.ui_mainwindow import Ui_MainWindow
+from Forms.ui_groups import Ui_GroupDialog
+from Forms.ui_groups_mvc import Ui_GroupDialogMVC
+from Forms.ui_komand import Ui_Komand
+from Forms.ui_position import Ui_Position
+from Forms.ui_dept import Ui_Dept
+from Forms.ui_empls import Ui_Employee
+from Forms.ui_sltask import Ui_SlTask
+from Forms.ui_selectemployee import Ui_SelectEmployee
 from entities import *
 
-SLTASK_TEMPLATE = 'file:///home/mrnkv/PyQt4/Templates/SlTask.odt'
+SLTASK_TEMPLATE = 'file:///home/mrnkv/MCMaker/Templates/SlTask.odt'
+
+data = {}
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -36,6 +42,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.komandTableView.setSelectionMode(QAbstractItemView.SingleSelection)
         self.servrecTableView.setSelectionMode(QAbstractItemView.SingleSelection)
         self.komandTableView.selectRow(0)
+        self.readConfig()
+
+    def readConfig(self):
+        parser = SafeConfigParser()
+        # Open the file with the correct encoding
+        with codecs.open(os.path.expanduser('~/.MCMaker.cfg'), 'rw', encoding='utf-8') as self.f:
+            parser.readfp(self.f)
+        self.dataFileName = parser.get('files','database_file')
+        if self.dataFileName == '':
+            self.dataFileName = QFileDialog.getOpenFileName(self, 
+                    u"Выбрать файл базы данных")
+
+            print self.dataFileName
+            with codecs.open(os.path.expanduser('~/.MCMaker.cfg'), 'rw', encoding='utf-8') as self.f:
+                parser.write(self.f)
         
     def addSlTask(self):
         index = self.komandTableView.currentIndex()
@@ -123,7 +144,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         row = index.row()
         sltask = self.sltaskmodel.data[row]
-        data={}
+        global data
+        #data={}
         data['$record_num']= sltask.record_num
         data['$record_date']= sltask.record_date.strftime('%d.%m.%Y')+u'г.'
         data['$record_fio']= sltask.record_fio
@@ -166,7 +188,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for find,replace in data.items():
             findandreplace(document,search,unicode(find),unicode(replace))
             print find,replace
-        document.storeAsURL('file:///home/mrnkv/tmp/sltask.odt',())
+        document.storeAsURL('file:///home/mrnkv/MCMaker/sltask.odt',())
         document.dispose()
         print 'Done'
 
