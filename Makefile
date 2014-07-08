@@ -34,3 +34,9 @@ Forms/ui_sltask.py: Forms/SlTask.ui
 
 Forms/ui_selectemployee.py: Forms/SelectEmployee.ui
 	pyuic4 Forms/SelectEmployee.ui -o Forms/ui_selectemployee.py
+
+clean:
+	rm *.pyc
+	rm Forms/ui_*.py
+	rm Forms/*.pyc
+

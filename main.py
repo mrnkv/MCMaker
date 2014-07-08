@@ -3,7 +3,7 @@
 import os
 import codecs
 import sys
-import ooutils
+#import ooutils
 import string
 from ConfigParser import SafeConfigParser
 from datetime import date
