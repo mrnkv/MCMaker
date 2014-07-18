@@ -4,11 +4,11 @@ from datetime import *
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import relationship
-
+from config import *
 
 
 def createSession(filename):
-    engine = create_engine('sqlite:////home/mrnkv/tmp/data.db', echo = True)
+    engine = create_engine('sqlite:///'+database_dir+database_file, echo = True)
     metadata = MetaData(engine)
     Session = sessionmaker(bind=engine)
     session = Session()

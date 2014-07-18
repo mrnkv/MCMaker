@@ -3,8 +3,12 @@
 import os
 import codecs
 import sys
-#import ooutils
 import string
+import zipfile
+import codecs
+import shutil
+import uuid
+
 from ConfigParser import SafeConfigParser
 from datetime import date
 from PyQt4.QtGui import QApplication, QDialog, QMainWindow, QFileDialog
@@ -21,7 +25,8 @@ from Forms.ui_sltask import Ui_SlTask
 from Forms.ui_selectemployee import Ui_SelectEmployee
 from entities import *
 
-SLTASK_TEMPLATE = 'file:///home/mrnkv/MCMaker/Templates/SlTask.odt'
+SLTASK_TEMPLATE = template_dir+template_slrec_file 
+#'file:///home/mrnkv/MCMaker/Templates/SlTask.odt'
 
 data = {}
 
@@ -42,22 +47,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.komandTableView.setSelectionMode(QAbstractItemView.SingleSelection)
         self.servrecTableView.setSelectionMode(QAbstractItemView.SingleSelection)
         self.komandTableView.selectRow(0)
-        self.readConfig()
 
-    def readConfig(self):
-        parser = SafeConfigParser()
-        # Open the file with the correct encoding
-        with codecs.open(os.path.expanduser('~/.MCMaker.cfg'), 'rw', encoding='utf-8') as self.f:
-            parser.readfp(self.f)
-        self.dataFileName = parser.get('files','database_file')
-        if self.dataFileName == '':
-            self.dataFileName = QFileDialog.getOpenFileName(self, 
-                    u"Выбрать файл базы данных")
-
-            print self.dataFileName
-            with codecs.open(os.path.expanduser('~/.MCMaker.cfg'), 'rw', encoding='utf-8') as self.f:
-                parser.write(self.f)
-        
     def addSlTask(self):
         index = self.komandTableView.currentIndex()
         print 'INDEX', index.row()
@@ -122,7 +112,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.sltaskmodel.emit(SIGNAL("layoutAboutToBeChanged()"))
         session.add(servrecord)
         session.commit()
-        self.sltaskmodel.data = session.query(SlTask).all()
+        self.sltaskmodel.data = session.query(ServRecord).all()
         self.sltaskmodel.emit(SIGNAL("layoutChanged()"))
         self.servrecTableView.reset()
 
@@ -135,7 +125,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.sltaskmodel.emit(SIGNAL("layoutAboutToBeChanged()"))
         session.delete(self.sltaskmodel.data[row])
         session.commit()
-        self.sltaskmodel.data = session.query(SlTask).all()
+        self.sltaskmodel.data = session.query(ServRecord).all()
         self.sltaskmodel.emit(SIGNAL("layoutChanged()"))
 
     def printSlTask(self):
@@ -145,18 +135,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         row = index.row()
         sltask = self.sltaskmodel.data[row]
         global data
-        #data={}
-        data['$record_num']= sltask.record_num
+        data['$record_num']= str(sltask.record_num)
         data['$record_date']= sltask.record_date.strftime('%d.%m.%Y')+u'г.'
         data['$record_fio']= sltask.record_fio
-        data['$record_tabnum']= sltask.record_tabnum
+        data['$record_tabnum']= str(sltask.record_tabnum)
         data['$record_str_podr']= sltask.record_str_podr
         data['$record_dolg']= sltask.record_dolg
         data['$record_addr']= sltask.record_addr
         data['$record_org']= sltask.record_org
         data['$record_start']= sltask.record_start.strftime('%d.%m.%Y')+u'г.'
         data['$record_end']= sltask.record_end.strftime('%d.%m.%Y')+u'г.'
-        data['$record_duration'] =(sltask.record_end - sltask.record_start).days + 1 
+        data['$record_duration'] =str((sltask.record_end - sltask.record_start).days + 1 )
         data['$record_zadan']= sltask.record_zadan
         data['$record_osn']= sltask.record_osn
         data['$record_ruk_str_otpr_dolg']= sltask.record_ruk_str_otpr_dolg
@@ -165,32 +154,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         data['$record_ruk_str_prin_fio']= sltask.record_ruk_str_prin_fio
         data['$record_ruk_org_dolg']= sltask.record_ruk_org_dolg
         data['$record_ruk_org_fio']= sltask.record_ruk_org_fio
-        oor = ooutils.OORunner()
-        desktop = oor.connect()
-        document = desktop.loadComponentFromURL(SLTASK_TEMPLATE ,"_blank", 0, ())
-        cursor = document.Text.createTextCursor()
-        search = document.createSearchDescriptor()
-        def findandreplace(document=document,search=search,find=None,replace=None):
-            """This function searches and replaces. Create search,
-            call function findFirst, and finally replace what we found."""
-            #What to search for
-            search.SearchString = unicode(find)
-            #search.SearchCaseSensitive = True
-            search.SearchWords = True
-            found = document.findFirst( search )
-            if found:
-                print 'Found %s' % find
-                while found:
-                    found.String = string.replace( found.String, 
-                            unicode(find),unicode(replace))
-                    found = document.findNext( found.End, search)
-        #Do a loop of the data and replace the content.
-        for find,replace in data.items():
-            findandreplace(document,search,unicode(find),unicode(replace))
-            print find,replace
-        document.storeAsURL('file:///home/mrnkv/MCMaker/sltask.odt',())
-        document.dispose()
-        print 'Done'
+        '''
+        Здесь 
+        -открыть шаблон документа 
+        -произвести замену всех переменных
+        -Сохранить
+        '''
+        uid = uuid.uuid4()
+        tmpdir=os.path.expanduser('~/.MCMaker/')+str(uid)+'/'
+        os.makedirs(tmpdir)
+        tmpfilename = tmpdir+'tmpdoc.zip'
+        with open(tmpfilename, 'a') as f:
+            with open(SLTASK_TEMPLATE) as t:
+                shutil.copyfileobj(t, f)
+        with zipfile.ZipFile(tmpfilename) as zf:
+            zf.extractall(tmpdir)
+        os.remove(tmpfilename)
+        content = ''
+        with codecs.open(tmpdir+'content.xml', 'r', 'utf-8') as f:
+            content = f.read()
+            for i in data.keys():
+                content = string.replace(content, i, data[i])
+        with codecs.open(tmpdir+'content.xml', 'w', 'utf-8') as f:
+            f.write(content)
+        os.chdir(tmpdir)
+        shutil.make_archive(docs_dir+'SlTask', 'zip')
+        shutil.move(docs_dir+'SlTask.zip', docs_dir+data['$record_num']+'_'+data['$record_fio']+'.odt')
+        shutil.rmtree(tmpdir)
 
     def addAccount(self):
         pass
@@ -379,11 +369,16 @@ class EmployeeDialog(QDialog, Ui_Employee):
         self.emplsPosModel.emit(SIGNAL("layoutAboutToBeChanged()"))
         self.emplsModel.emit(SIGNAL("layoutAboutToBeChanged()"))
         self.emplsTableView.reset()
+        empl = self.emplsModel.data[row]
+        pos =session.query(Position).filter_by(employee = empl.position).first()
+        pos.employee = 0
         session.delete(self.emplsModel.data[row])
         session.commit()
         self.emplsModel.data = session.query(Employee).all()
+        self.emplsPosModel.data = list(session.query(Position).filter(Position.employee == 0))
         self.emplsModel.emit(SIGNAL("layoutChanged()"))
         self.emplsPosModel.emit(SIGNAL("layoutChanged()"))
+        self.positionsTableView.reset()
         pass
 
 
